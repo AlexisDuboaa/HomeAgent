@@ -98,7 +98,13 @@ export function startEventListener(
     const ctxBase = { now, sunTimes: { sunrise: sunTimes.sunrise, sunset: sunTimes.sunset } }
 
     if (event.type === 'motion' || event.type === 'light_level') {
-      const snapshot = await buildSnapshot(client)
+      let snapshot
+      try {
+        snapshot = await buildSnapshot(client)
+      } catch (err) {
+        console.error('Bridge Hue injoignable, événement ignoré :', err instanceof Error ? err.message : err)
+        return
+      }
       const sensorState = snapshot.sensors[targetId]?.state
       if (!sensorState) return
       await runTick(
@@ -114,7 +120,13 @@ export function startEventListener(
       })
     } else if (event.type === 'light' || event.type === 'grouped_light') {
       const targetKind: TargetKind = event.type === 'grouped_light' ? 'group' : 'light'
-      const snapshot = await buildSnapshot(client)
+      let snapshot
+      try {
+        snapshot = await buildSnapshot(client)
+      } catch (err) {
+        console.error('Bridge Hue injoignable, événement ignoré :', err instanceof Error ? err.message : err)
+        return
+      }
       const on = (targetKind === 'light' ? snapshot.lights : snapshot.groups)[targetId]?.on
       if (on === undefined) return
       await runTick(
