@@ -13,7 +13,22 @@ services:
       - hue-dashboard-default
       - voxurba-network # Reseau partage avec cloudflared (tunnel Cloudflare)
 
+  automation-engine:
+    image: automation-engine:latest
+    container_name: automation-engine-container
+    restart: unless-stopped
+    environment:
+      - HUE_BRIDGE_IP=192.168.1.75
+      - HUE_USERNAME=${HUE_USERNAME}
+    volumes:
+      - automation-data:/data
+    networks:
+      - hue-dashboard-default # reseau interne uniquement, pas de sortie publique
+
 networks:
   hue-dashboard-default:
   voxurba-network:
     external: true # Reseau partage gere existant sur le NAS (contient cloudflared)
+
+volumes:
+  automation-data:
