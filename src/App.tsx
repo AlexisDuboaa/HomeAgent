@@ -9,6 +9,7 @@ import Routines from './pages/Routines'
 import Settings from './pages/Settings'
 import Rooms from './pages/Rooms'
 import RoomDetail from './pages/RoomDetail'
+import AutomationForm from './pages/AutomationForm'
 
 function AppShell() {
   const { config } = useHue()
@@ -26,6 +27,8 @@ function AppShell() {
           <Route path="/settings" element={<Settings />} />
           <Route path="/rooms" element={<Rooms />} />
           <Route path="/rooms/:id" element={<RoomDetail />} />
+          <Route path="/routines/new" element={<AutomationForm />} />
+          <Route path="/routines/:id" element={<AutomationForm />} />
         </Routes>
       </main>
     </div>

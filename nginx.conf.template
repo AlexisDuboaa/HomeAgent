@@ -22,4 +22,9 @@ server {
         proxy_pass http://${HUE_BRIDGE_IP}/;
         proxy_set_header Host ${HUE_BRIDGE_IP};
     }
+
+    # Proxy vers automation-engine (nom de service Docker, resolu par le reseau interne du compose)
+    location /automations-api/ {
+        proxy_pass http://automation-engine:3001/;
+    }
 }

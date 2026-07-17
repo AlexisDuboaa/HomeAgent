@@ -4,13 +4,10 @@ set -euo pipefail
 # ============================================================
 # Configuration — a ajuster selon l'environnement
 # ============================================================
-IMAGE_NAME="hue-dashboard"
-IMAGE_TAG="latest"
 NAS_USER="Alexis"
 NAS_HOST="gargantua.local"        # IP ou hostname du NAS
 NAS_DIR="/volume1/docker/hue-dashboard"
 PLATFORM="linux/amd64"            # Architecture du NAS (Intel/AMD)
-ARCHIVE="/tmp/${IMAGE_NAME}.tar"
 
 # ============================================================
 # Verifications prealables
@@ -20,68 +17,87 @@ if [ ! -f "Dockerfile" ]; then
   exit 1
 fi
 
-echo "Build & Deploy — ${IMAGE_NAME}"
+if [ ! -f "automation-engine/Dockerfile" ]; then
+  echo "automation-engine/Dockerfile introuvable."
+  exit 1
+fi
+
+echo "Build & Deploy — hue-dashboard + automation-engine"
 echo "Cible : $NAS_USER@$NAS_HOST:$NAS_DIR"
 
-# ============================================================
-# [1/5] Build Docker cross-platform (sans charger localement)
-# ============================================================
-echo "[1/5] Build de l'image Docker pour $PLATFORM..."
-
-# Charger les variables du fichier .env.local si présent
+# Charge les variables du fichier .env.local si present
 if [ -f ".env.local" ]; then
   set -a; source .env.local; set +a
 fi
 
+# ============================================================
+# [1/6] Build de l'image du dashboard
+# ============================================================
+echo "[1/6] Build de l'image hue-dashboard pour $PLATFORM..."
 docker buildx build \
   --platform "$PLATFORM" \
   --build-arg "VITE_HUE_USERNAME=${VITE_HUE_USERNAME:-}" \
-  --output "type=docker,dest=${ARCHIVE}" \
-  --tag "$IMAGE_NAME:$IMAGE_TAG" \
+  --output "type=docker,dest=/tmp/hue-dashboard.tar" \
+  --tag "hue-dashboard:latest" \
   .
 
 # ============================================================
-# [2/5] Compression
+# [2/6] Build de l'image du moteur d'automatisations
 # ============================================================
-echo "[2/5] Compression de l'image..."
-gzip -f "$ARCHIVE"
-ARCHIVE_GZ="${ARCHIVE}.gz"
+echo "[2/6] Build de l'image automation-engine pour $PLATFORM..."
+docker buildx build \
+  --platform "$PLATFORM" \
+  --output "type=docker,dest=/tmp/automation-engine.tar" \
+  --tag "automation-engine:latest" \
+  ./automation-engine
 
 # ============================================================
-# [3/5] Preparation du dossier et copie de la config sur le NAS
+# [3/6] Compression
 # ============================================================
-echo "[3/5] Preparation du dossier sur le NAS..."
+echo "[3/6] Compression des images..."
+gzip -f /tmp/hue-dashboard.tar
+gzip -f /tmp/automation-engine.tar
+
+# ============================================================
+# [4/6] Preparation du dossier et copie de la config sur le NAS
+# ============================================================
+echo "[4/6] Preparation du dossier sur le NAS..."
 ssh "$NAS_USER@$NAS_HOST" "mkdir -p $NAS_DIR"
 
 # ssh stdin/stdout car le sous-systeme SFTP Synology est incompatible avec scp
 echo "       Copie de docker-compose.yml..."
 ssh "$NAS_USER@$NAS_HOST" "cat > $NAS_DIR/docker-compose.yml" < docker-compose.yml
 
-# ============================================================
-# [4/5] Transfert de l'image
-# ============================================================
-echo "[4/5] Transfert de l'image vers le NAS..."
-ssh "$NAS_USER@$NAS_HOST" "cat > /tmp/${IMAGE_NAME}.tar.gz" < "$ARCHIVE_GZ"
+echo "       Copie de .env (HUE_USERNAME pour automation-engine)..."
+echo "HUE_USERNAME=${VITE_HUE_USERNAME:-}" | ssh "$NAS_USER@$NAS_HOST" "cat > $NAS_DIR/.env"
 
 # ============================================================
-# [5/5] Chargement et redemarrage sur le NAS
+# [5/6] Transfert des images
 # ============================================================
-echo "[5/5] Chargement de l'image et redemarrage du container..."
+echo "[5/6] Transfert des images vers le NAS..."
+ssh "$NAS_USER@$NAS_HOST" "cat > /tmp/hue-dashboard.tar.gz" < /tmp/hue-dashboard.tar.gz
+ssh "$NAS_USER@$NAS_HOST" "cat > /tmp/automation-engine.tar.gz" < /tmp/automation-engine.tar.gz
+
+# ============================================================
+# [6/6] Chargement et redemarrage sur le NAS
+# ============================================================
+echo "[6/6] Chargement des images et redemarrage des containers..."
 ssh "$NAS_USER@$NAS_HOST" "
   export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH
   set -e
-  sudo docker load < /tmp/${IMAGE_NAME}.tar.gz
-  rm /tmp/${IMAGE_NAME}.tar.gz
+  sudo docker load < /tmp/hue-dashboard.tar.gz
+  sudo docker load < /tmp/automation-engine.tar.gz
+  rm /tmp/hue-dashboard.tar.gz /tmp/automation-engine.tar.gz
   cd ${NAS_DIR}
   sudo docker compose down --remove-orphans
   sudo docker compose up -d
-  sudo docker ps --filter name=${IMAGE_NAME}
+  sudo docker ps --filter name=hue-dashboard --filter name=automation-engine
 "
 
 # ============================================================
 # Nettoyage local
 # ============================================================
-rm -f "$ARCHIVE_GZ"
+rm -f /tmp/hue-dashboard.tar.gz /tmp/automation-engine.tar.gz
 
 echo ""
 echo "Deploiement termine !"
