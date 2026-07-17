@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, AlertCircle, CheckCircle, Plus, Trash2 } from 'lucide-react'
 import { useHue } from '../context/HueContext'
-import { createAutomation, getAutomations, updateAutomation } from '../api/automations'
-import type { Action, Condition, SensorEvent, Trigger } from '../types/automation'
+import { createAutomation, getAutomationHistory, getAutomations, updateAutomation } from '../api/automations'
+import type { Action, AutomationRunLogEntry, Condition, SensorEvent, Trigger } from '../types/automation'
 
 const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
@@ -32,6 +32,7 @@ export default function AutomationForm() {
   const [actions, setActions] = useState<Action[]>([defaultAction()])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [history, setHistory] = useState<AutomationRunLogEntry[]>([])
 
   useEffect(() => {
     if (!id) return
@@ -44,6 +45,7 @@ export default function AutomationForm() {
       setConditions(existing.conditions)
       setActions(existing.actions)
     })
+    getAutomationHistory(id).then(setHistory)
   }, [id])
 
   const handleSave = async () => {
@@ -497,6 +499,38 @@ export default function AutomationForm() {
             </div>
           ))}
         </section>
+
+        {isEditing && (
+          <section className="bg-bg-card rounded-2xl p-6 flex flex-col gap-4">
+            <h2 className="font-semibold text-white">Historique des exécutions</h2>
+            {history.length === 0 ? (
+              <p className="text-sm text-text-secondary">Aucune exécution pour l'instant.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {history.map((entry, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    {entry.success ? (
+                      <CheckCircle size={16} className="text-accent-green shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-sm text-white">{new Date(entry.at).toLocaleString('fr-FR')}</span>
+                      {entry.success ? (
+                        <span className="text-xs text-text-secondary">
+                          {entry.actionsExecuted} action{entry.actionsExecuted > 1 ? 's' : ''} exécutée
+                          {entry.actionsExecuted > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-red-400">{entry.error ?? 'Échec de l\'exécution'}</span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         <div className="flex items-center gap-3 pb-4">
           <button

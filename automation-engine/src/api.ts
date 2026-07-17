@@ -2,6 +2,34 @@ import express from 'express'
 import type { AutomationStore } from './store.js'
 import type { Automation, LocationConfig } from './types.js'
 
+const TRIGGER_TYPES = new Set(['time', 'sun', 'sensor', 'light_state'])
+
+function isValidAutomationInput(body: unknown): body is Omit<Automation, 'id' | 'createdAt'> {
+  if (typeof body !== 'object' || body === null) return false
+  const input = body as Record<string, unknown>
+
+  if (typeof input.name !== 'string' || input.name.trim().length === 0) return false
+  if (typeof input.enabled !== 'boolean') return false
+  if (typeof input.trigger !== 'object' || input.trigger === null) return false
+  const trigger = input.trigger as Record<string, unknown>
+  if (typeof trigger.type !== 'string' || !TRIGGER_TYPES.has(trigger.type)) return false
+  if (!Array.isArray(input.conditions)) return false
+  if (!Array.isArray(input.actions)) return false
+
+  return true
+}
+
+function isValidLocationConfig(body: unknown): body is LocationConfig {
+  if (typeof body !== 'object' || body === null) return false
+  const config = body as Record<string, unknown>
+  return (
+    typeof config.latitude === 'number' &&
+    Number.isFinite(config.latitude) &&
+    typeof config.longitude === 'number' &&
+    Number.isFinite(config.longitude)
+  )
+}
+
 export function createApiServer(store: AutomationStore) {
   const app = express()
   app.use(express.json())
@@ -11,14 +39,20 @@ export function createApiServer(store: AutomationStore) {
   })
 
   app.post('/automations', async (req, res) => {
-    const input = req.body as Omit<Automation, 'id' | 'createdAt'>
-    const automation = await store.create(input)
+    if (!isValidAutomationInput(req.body)) {
+      res.status(400).json({ error: 'Automatisation invalide' })
+      return
+    }
+    const automation = await store.create(req.body)
     res.status(201).json(automation)
   })
 
   app.put('/automations/:id', async (req, res) => {
-    const input = req.body as Omit<Automation, 'id' | 'createdAt'>
-    const automation = await store.update(req.params.id, input)
+    if (!isValidAutomationInput(req.body)) {
+      res.status(400).json({ error: 'Automatisation invalide' })
+      return
+    }
+    const automation = await store.update(req.params.id, req.body)
     if (!automation) {
       res.status(404).json({ error: 'Automatisation introuvable' })
       return
@@ -53,8 +87,11 @@ export function createApiServer(store: AutomationStore) {
   })
 
   app.put('/config', async (req, res) => {
-    const config = req.body as LocationConfig
-    await store.setConfig(config)
+    if (!isValidLocationConfig(req.body)) {
+      res.status(400).json({ error: 'Coordonnées invalides' })
+      return
+    }
+    await store.setConfig(req.body)
     res.json(store.getConfig())
   })
 
