@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Wifi, Trash2, RefreshCw, CheckCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CheckCircle, MapPin, RefreshCw, Trash2, Wifi } from 'lucide-react'
 import { useHue } from '../context/HueContext'
+import { getLocationConfig, setLocationConfig } from '../api/automations'
 
 export default function Settings() {
   const { config, setConfig, refresh, loading } = useHue()
@@ -8,11 +9,44 @@ export default function Settings() {
   const [username, setUsername] = useState(config?.username ?? '')
   const [saved, setSaved] = useState(false)
 
+  const [latitude, setLatitude] = useState('')
+  const [longitude, setLongitude] = useState('')
+  const [locationSaved, setLocationSaved] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getLocationConfig()
+      .then((location) => {
+        if (location) {
+          setLatitude(String(location.latitude))
+          setLongitude(String(location.longitude))
+        }
+      })
+      .catch(() => setLocationError("Impossible de contacter le service d'automatisations."))
+  }, [])
+
   const handleSave = () => {
     if (ip && username) {
       setConfig({ ip, username })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
+    }
+  }
+
+  const handleSaveLocation = async () => {
+    const lat = Number(latitude)
+    const lng = Number(longitude)
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      setLocationError('Latitude et longitude doivent être des nombres.')
+      return
+    }
+    setLocationError(null)
+    try {
+      await setLocationConfig({ latitude: lat, longitude: lng })
+      setLocationSaved(true)
+      setTimeout(() => setLocationSaved(false), 2000)
+    } catch {
+      setLocationError("Impossible de contacter le service d'automatisations.")
     }
   }
 
@@ -83,6 +117,55 @@ export default function Settings() {
                 Actualiser
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* Location for sunrise/sunset triggers */}
+        <section className="bg-bg-card rounded-2xl p-6 flex flex-col gap-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-accent-purple/20 flex items-center justify-center">
+              <MapPin size={18} className="text-accent-purple" />
+            </div>
+            <h2 className="font-semibold text-white">Localisation</h2>
+          </div>
+          <p className="text-xs text-text-secondary -mt-2">
+            Utilisée pour calculer les horaires de lever et coucher du soleil dans les
+            automatisations.
+          </p>
+
+          {locationError && <p className="text-sm text-red-400">{locationError}</p>}
+
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-xs font-medium text-text-secondary mb-2 block">Latitude</label>
+                <input
+                  type="text"
+                  value={latitude}
+                  onChange={(e) => setLatitude(e.target.value)}
+                  placeholder="48.8566"
+                  className="w-full bg-bg-primary border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-accent-orange placeholder:text-text-muted"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs font-medium text-text-secondary mb-2 block">Longitude</label>
+                <input
+                  type="text"
+                  value={longitude}
+                  onChange={(e) => setLongitude(e.target.value)}
+                  placeholder="2.3522"
+                  className="w-full bg-bg-primary border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-accent-orange placeholder:text-text-muted"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleSaveLocation}
+              disabled={!latitude || !longitude}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent-orange text-white text-sm font-semibold transition-all hover:bg-accent-orange-dark disabled:opacity-50 self-start"
+            >
+              {locationSaved ? <CheckCircle size={15} /> : null}
+              {locationSaved ? 'Enregistré !' : 'Enregistrer'}
+            </button>
           </div>
         </section>
 
