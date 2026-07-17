@@ -1,6 +1,7 @@
 import 'dotenv/config'
-import { HueClient } from './hueClient.js'
 import { createApiServer } from './api.js'
+import { startEventListener } from './eventListener.js'
+import { HueClient } from './hueClient.js'
 import { startScheduler } from './scheduler.js'
 import { AutomationStore } from './store.js'
 
@@ -19,6 +20,7 @@ async function main() {
 
   const client = new HueClient({ bridgeIp: BRIDGE_IP!, username: USERNAME! })
   const stopScheduler = startScheduler(store, client)
+  const stopEventListener = startEventListener(store, client, { bridgeIp: BRIDGE_IP!, username: USERNAME! })
 
   const app = createApiServer(store)
   const server = app.listen(PORT, () => {
@@ -27,6 +29,7 @@ async function main() {
 
   const shutdown = () => {
     stopScheduler()
+    stopEventListener()
     server.close()
   }
   process.on('SIGTERM', shutdown)
