@@ -85,13 +85,13 @@ echo "[6/6] Chargement des images et redemarrage des containers..."
 ssh "$NAS_USER@$NAS_HOST" "
   export PATH=/usr/local/bin:/usr/bin:/bin:\$PATH
   set -e
-  sudo docker load < /tmp/hue-dashboard.tar.gz
-  sudo docker load < /tmp/automation-engine.tar.gz
+  docker load < /tmp/hue-dashboard.tar.gz
+  docker load < /tmp/automation-engine.tar.gz
   rm /tmp/hue-dashboard.tar.gz /tmp/automation-engine.tar.gz
   cd ${NAS_DIR}
-  sudo docker compose down --remove-orphans
-  sudo docker compose up -d
-  sudo docker ps --filter name=hue-dashboard --filter name=automation-engine
+  docker compose down --remove-orphans
+  docker compose up -d
+  docker ps --filter name=hue-dashboard --filter name=automation-engine
 "
 
 # ============================================================
