@@ -1,0 +1,19 @@
+version: '3.9'
+
+services:
+  hue-dashboard:
+    image: hue-dashboard:latest
+    container_name: hue-dashboard-container
+    restart: unless-stopped
+    # ports:
+    #   - "8042:80"       # Décommente pour accès local direct (sans tunnel)
+    environment:
+      - HUE_BRIDGE_IP=192.168.1.75
+    networks:
+      - hue-dashboard-default
+      - voxurba-network # Reseau partage avec cloudflared (tunnel Cloudflare)
+
+networks:
+  hue-dashboard-default:
+  voxurba-network:
+    external: true # Reseau partage gere existant sur le NAS (contient cloudflared)

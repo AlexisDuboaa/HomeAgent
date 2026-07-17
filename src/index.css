@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #0d0d17;
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111118;
+}
+::-webkit-scrollbar-thumb {
+  background: #2e2e3f;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #888899;
+}
+
+/* Slider styles */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffb347;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255, 179, 71, 0.6);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffb347;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 8px rgba(255, 179, 71, 0.6);
+}
+
+/* Transitions */
+.transition-all {
+  transition: all 0.2s ease;
+}

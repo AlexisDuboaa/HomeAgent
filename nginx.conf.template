@@ -1,0 +1,25 @@
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # SPA routing — toutes les routes renvoient vers index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache agressif pour les assets avec hash Vite
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Proxy vers le bridge Hue (réseau local, inaccessible depuis le navigateur externe)
+    # ${HUE_BRIDGE_IP} est injecté par envsubst au démarrage du container
+    location /hue-bridge/ {
+        proxy_pass http://${HUE_BRIDGE_IP}/;
+        proxy_set_header Host ${HUE_BRIDGE_IP};
+    }
+}
