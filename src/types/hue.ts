@@ -56,6 +56,18 @@ export interface HueScene {
   }
 }
 
+export interface HueSensor {
+  id: string
+  name: string
+  type: string // e.g. 'ZLLPresence', 'ZLLLightLevel', 'ZLLSwitch', 'ZGPSwitch'
+  state: {
+    presence?: boolean
+    dark?: boolean
+    lightlevel?: number
+    buttonevent?: number
+  }
+}
+
 export interface LightUpdate {
   on?: boolean
   bri?: number

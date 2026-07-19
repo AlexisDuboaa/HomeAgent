@@ -2,10 +2,48 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, CheckCircle, Plus, Trash2 } from 'lucide-react'
 import { useHue } from '../context/HueContext'
-import { createAutomation, getAutomationHistory, getAutomations, updateAutomation } from '../api/automations'
-import type { Action, AutomationRunLogEntry, Condition, SensorEvent, Trigger } from '../types/automation'
+import {
+  createAutomation,
+  getAutomationHistory,
+  getAutomations,
+  updateAutomation,
+} from '../api/automations'
+import type {
+  Action,
+  AutomationRunLogEntry,
+  Condition,
+  SensorEvent,
+  Trigger,
+} from '../types/automation'
 
 const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+
+const SENSOR_TYPE_LABELS: Record<string, string> = {
+  ZLLPresence: 'présence',
+  ZLLLightLevel: 'luminosité',
+  ZLLSwitch: 'bouton',
+  ZGPSwitch: 'bouton',
+}
+
+const SENSOR_EVENT_LABELS: Record<SensorEvent, string> = {
+  motion: 'Mouvement détecté',
+  no_motion: 'Plus de mouvement',
+  button_press: 'Bouton pressé',
+  low_light: 'Faible luminosité',
+  bright_light: 'Forte luminosité',
+}
+
+// Les capteurs de présence/luminosité n'ont que 2 événements pertinents, les boutons un seul.
+// Sans capteur sélectionné, on propose tout (l'utilisateur n'a pas encore choisi).
+function sensorEventOptions(sensorType: string | undefined, allowButtonPress: boolean) {
+  let allowed: SensorEvent[]
+  if (sensorType === 'ZLLPresence') allowed = ['motion', 'no_motion']
+  else if (sensorType === 'ZLLLightLevel') allowed = ['low_light', 'bright_light']
+  else if (sensorType === 'ZLLSwitch' || sensorType === 'ZGPSwitch') allowed = ['button_press']
+  else allowed = ['motion', 'no_motion', 'button_press', 'low_light', 'bright_light']
+  if (!allowButtonPress) allowed = allowed.filter((event) => event !== 'button_press')
+  return allowed.map((value) => ({ value, label: SENSOR_EVENT_LABELS[value] }))
+}
 
 function defaultTrigger(): Trigger {
   return { type: 'time', hour: 7, minute: 0, days: [] }
@@ -22,7 +60,7 @@ function defaultAction(): Action {
 export default function AutomationForm() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { lights, groups, scenes } = useHue()
+  const { lights, groups, scenes, sensors } = useHue()
   const isEditing = Boolean(id)
 
   const [name, setName] = useState('')
@@ -72,7 +110,9 @@ export default function AutomationForm() {
 
   const toggleDay = (day: number) => {
     if (trigger.type !== 'time') return
-    const days = trigger.days.includes(day) ? trigger.days.filter((d) => d !== day) : [...trigger.days, day]
+    const days = trigger.days.includes(day)
+      ? trigger.days.filter((d) => d !== day)
+      : [...trigger.days, day]
     setTrigger({ ...trigger, days })
   }
 
@@ -112,9 +152,12 @@ export default function AutomationForm() {
             onChange={(e) => {
               const type = e.target.value as Trigger['type']
               if (type === 'time') setTrigger({ type: 'time', hour: 7, minute: 0, days: [] })
-              else if (type === 'sun') setTrigger({ type: 'sun', event: 'sunset', offsetMinutes: 0 })
-              else if (type === 'sensor') setTrigger({ type: 'sensor', sensorId: '', event: 'motion' })
-              else setTrigger({ type: 'light_state', targetId: '', targetKind: 'light', state: 'on' })
+              else if (type === 'sun')
+                setTrigger({ type: 'sun', event: 'sunset', offsetMinutes: 0 })
+              else if (type === 'sensor')
+                setTrigger({ type: 'sensor', sensorId: '', event: 'motion' })
+              else
+                setTrigger({ type: 'light_state', targetId: '', targetKind: 'light', state: 'on' })
             }}
             className="w-full bg-bg-primary border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-accent-orange"
           >
@@ -151,7 +194,9 @@ export default function AutomationForm() {
                     type="button"
                     onClick={() => toggleDay(day)}
                     className={`w-9 h-9 rounded-lg text-xs font-medium transition-all ${
-                      trigger.days.includes(day) ? 'bg-accent-orange text-white' : 'bg-bg-primary text-text-secondary'
+                      trigger.days.includes(day)
+                        ? 'bg-accent-orange text-white'
+                        : 'bg-bg-primary text-text-secondary'
                     }`}
                   >
                     {label}
@@ -166,7 +211,9 @@ export default function AutomationForm() {
             <div className="flex gap-3 items-center">
               <select
                 value={trigger.event}
-                onChange={(e) => setTrigger({ ...trigger, event: e.target.value as 'sunrise' | 'sunset' })}
+                onChange={(e) =>
+                  setTrigger({ ...trigger, event: e.target.value as 'sunrise' | 'sunset' })
+                }
                 className="bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange"
               >
                 <option value="sunrise">Lever du soleil</option>
@@ -184,23 +231,35 @@ export default function AutomationForm() {
 
           {trigger.type === 'sensor' && (
             <div className="flex gap-3">
-              <input
-                type="text"
+              <select
                 value={trigger.sensorId}
-                onChange={(e) => setTrigger({ ...trigger, sensorId: e.target.value })}
-                placeholder="ID du capteur"
-                className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange placeholder:text-text-muted"
-              />
+                onChange={(e) => {
+                  const sensorId = e.target.value
+                  const sensorType = sensors.find((s) => s.id === sensorId)?.type
+                  const [defaultEvent] = sensorEventOptions(sensorType, true)
+                  setTrigger({ ...trigger, sensorId, event: defaultEvent?.value ?? trigger.event })
+                }}
+                className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange"
+              >
+                <option value="">Choisir un capteur...</option>
+                {sensors.map((sensor) => (
+                  <option key={sensor.id} value={sensor.id}>
+                    {sensor.name} ({SENSOR_TYPE_LABELS[sensor.type] ?? sensor.type})
+                  </option>
+                ))}
+              </select>
               <select
                 value={trigger.event}
                 onChange={(e) => setTrigger({ ...trigger, event: e.target.value as SensorEvent })}
                 className="bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange"
               >
-                <option value="motion">Mouvement détecté</option>
-                <option value="no_motion">Plus de mouvement</option>
-                <option value="button_press">Bouton pressé</option>
-                <option value="low_light">Faible luminosité</option>
-                <option value="bright_light">Forte luminosité</option>
+                {sensorEventOptions(sensors.find((s) => s.id === trigger.sensorId)?.type, true).map(
+                  (opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  )
+                )}
               </select>
             </div>
           )}
@@ -209,7 +268,9 @@ export default function AutomationForm() {
             <div className="flex gap-3">
               <select
                 value={trigger.targetKind}
-                onChange={(e) => setTrigger({ ...trigger, targetKind: e.target.value as 'light' | 'group' })}
+                onChange={(e) =>
+                  setTrigger({ ...trigger, targetKind: e.target.value as 'light' | 'group' })
+                }
                 className="bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange"
               >
                 <option value="light">Lampe</option>
@@ -258,9 +319,15 @@ export default function AutomationForm() {
                 onChange={(e) => {
                   const type = e.target.value as Condition['type']
                   const next = [...conditions]
-                  if (type === 'time_window') next[index] = { type: 'time_window', after: { hour: 20, minute: 0 } }
+                  if (type === 'time_window')
+                    next[index] = { type: 'time_window', after: { hour: 20, minute: 0 } }
                   else if (type === 'light_state')
-                    next[index] = { type: 'light_state', targetId: '', targetKind: 'light', state: 'on' }
+                    next[index] = {
+                      type: 'light_state',
+                      targetId: '',
+                      targetKind: 'light',
+                      state: 'on',
+                    }
                   else next[index] = { type: 'sensor_state', sensorId: '', state: 'motion' }
                   setConditions(next)
                 }}
@@ -282,7 +349,10 @@ export default function AutomationForm() {
                       const next = [...conditions]
                       next[index] = {
                         ...condition,
-                        after: { hour: Number(e.target.value), minute: condition.after?.minute ?? 0 },
+                        after: {
+                          hour: Number(e.target.value),
+                          minute: condition.after?.minute ?? 0,
+                        },
                       }
                       setConditions(next)
                     }}
@@ -298,7 +368,10 @@ export default function AutomationForm() {
                       const next = [...conditions]
                       next[index] = {
                         ...condition,
-                        before: { hour: Number(e.target.value), minute: condition.before?.minute ?? 59 },
+                        before: {
+                          hour: Number(e.target.value),
+                          minute: condition.before?.minute ?? 59,
+                        },
                       }
                       setConditions(next)
                     }}
@@ -313,7 +386,10 @@ export default function AutomationForm() {
                     value={condition.targetKind}
                     onChange={(e) => {
                       const next = [...conditions]
-                      next[index] = { ...condition, targetKind: e.target.value as 'light' | 'group' }
+                      next[index] = {
+                        ...condition,
+                        targetKind: e.target.value as 'light' | 'group',
+                      }
                       setConditions(next)
                     }}
                     className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
@@ -354,17 +430,31 @@ export default function AutomationForm() {
 
               {condition.type === 'sensor_state' && (
                 <>
-                  <input
-                    type="text"
+                  <select
                     value={condition.sensorId}
                     onChange={(e) => {
+                      const sensorId = e.target.value
+                      const sensorType = sensors.find((s) => s.id === sensorId)?.type
+                      const [defaultEvent] = sensorEventOptions(sensorType, false)
                       const next = [...conditions]
-                      next[index] = { ...condition, sensorId: e.target.value }
+                      next[index] = {
+                        ...condition,
+                        sensorId,
+                        state: defaultEvent?.value ?? condition.state,
+                      }
                       setConditions(next)
                     }}
-                    placeholder="ID du capteur"
-                    className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange placeholder:text-text-muted"
-                  />
+                    className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                  >
+                    <option value="">Choisir un capteur...</option>
+                    {sensors
+                      .filter((s) => s.type === 'ZLLPresence' || s.type === 'ZLLLightLevel')
+                      .map((sensor) => (
+                        <option key={sensor.id} value={sensor.id}>
+                          {sensor.name} ({SENSOR_TYPE_LABELS[sensor.type] ?? sensor.type})
+                        </option>
+                      ))}
+                  </select>
                   <select
                     value={condition.state}
                     onChange={(e) => {
@@ -374,10 +464,14 @@ export default function AutomationForm() {
                     }}
                     className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
                   >
-                    <option value="motion">Mouvement</option>
-                    <option value="no_motion">Pas de mouvement</option>
-                    <option value="low_light">Faible luminosité</option>
-                    <option value="bright_light">Forte luminosité</option>
+                    {sensorEventOptions(
+                      sensors.find((s) => s.id === condition.sensorId)?.type,
+                      false
+                    ).map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </>
               )}
@@ -414,7 +508,12 @@ export default function AutomationForm() {
                   const next = [...actions]
                   next[index] =
                     type === 'set_light_state'
-                      ? { type: 'set_light_state', targetId: '', targetKind: 'light', update: { on: true } }
+                      ? {
+                          type: 'set_light_state',
+                          targetId: '',
+                          targetKind: 'light',
+                          update: { on: true },
+                        }
                       : { type: 'activate_scene', groupId: '', sceneId: '' }
                   setActions(next)
                 }}
@@ -458,7 +557,10 @@ export default function AutomationForm() {
                     value={action.update.on === false ? 'off' : 'on'}
                     onChange={(e) => {
                       const next = [...actions]
-                      next[index] = { ...action, update: { ...action.update, on: e.target.value === 'on' } }
+                      next[index] = {
+                        ...action,
+                        update: { ...action.update, on: e.target.value === 'on' },
+                      }
                       setActions(next)
                     }}
                     className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
@@ -475,7 +577,11 @@ export default function AutomationForm() {
                   onChange={(e) => {
                     const scene = scenes.find((s) => s.id === e.target.value)
                     const next = [...actions]
-                    next[index] = { type: 'activate_scene', groupId: scene?.group ?? '', sceneId: e.target.value }
+                    next[index] = {
+                      type: 'activate_scene',
+                      groupId: scene?.group ?? '',
+                      sceneId: e.target.value,
+                    }
                     setActions(next)
                   }}
                   className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
@@ -515,14 +621,19 @@ export default function AutomationForm() {
                       <AlertCircle size={16} className="text-red-400 shrink-0 mt-0.5" />
                     )}
                     <div className="flex flex-col">
-                      <span className="text-sm text-white">{new Date(entry.at).toLocaleString('fr-FR')}</span>
+                      <span className="text-sm text-white">
+                        {new Date(entry.at).toLocaleString('fr-FR')}
+                      </span>
                       {entry.success ? (
                         <span className="text-xs text-text-secondary">
-                          {entry.actionsExecuted} action{entry.actionsExecuted > 1 ? 's' : ''} exécutée
+                          {entry.actionsExecuted} action{entry.actionsExecuted > 1 ? 's' : ''}{' '}
+                          exécutée
                           {entry.actionsExecuted > 1 ? 's' : ''}
                         </span>
                       ) : (
-                        <span className="text-xs text-red-400">{entry.error ?? 'Échec de l\'exécution'}</span>
+                        <span className="text-xs text-red-400">
+                          {entry.error ?? "Échec de l'exécution"}
+                        </span>
                       )}
                     </div>
                   </li>
@@ -541,7 +652,11 @@ export default function AutomationForm() {
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
           <label className="flex items-center gap-2 text-sm text-text-secondary">
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+            />
             Activée
           </label>
         </div>
