@@ -1,5 +1,12 @@
 import axios from 'axios'
-import type { HueBridgeConfig, HueLight, HueGroup, HueScene, LightUpdate } from '../types/hue'
+import type {
+  HueBridgeConfig,
+  HueLight,
+  HueGroup,
+  HueScene,
+  HueSensor,
+  LightUpdate,
+} from '../types/hue'
 
 const createClient = (config: HueBridgeConfig) => {
   const base =
@@ -89,6 +96,21 @@ export async function activateScene(
 ): Promise<void> {
   const client = createClient(config)
   await client.put(`/groups/${groupId}/action`, { scene: sceneId })
+}
+
+// ─── Sensors ───────────────────────────────────────────────────────────────
+
+// Types de capteurs utilisables dans les automatisations (mouvement, luminosité, bouton).
+// Le bridge expose aussi des capteurs virtuels (Daylight, capteurs CLIP d'autres apps, etc.)
+// qu'on ne veut pas proposer dans un sélecteur d'automatisation.
+const AUTOMATABLE_SENSOR_TYPES = ['ZLLPresence', 'ZLLLightLevel', 'ZLLSwitch', 'ZGPSwitch']
+
+export async function getSensors(config: HueBridgeConfig): Promise<HueSensor[]> {
+  const client = createClient(config)
+  const { data } = await client.get<Record<string, Omit<HueSensor, 'id'>>>('/sensors')
+  return Object.entries(data)
+    .filter(([, s]) => AUTOMATABLE_SENSOR_TYPES.includes(s.type))
+    .map(([id, sensor]) => ({ id, ...sensor }))
 }
 
 // ─── Bridge discovery ──────────────────────────────────────────────────────

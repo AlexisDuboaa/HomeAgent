@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import type { HueBridgeConfig, HueLight, HueGroup, HueScene, LightUpdate } from '../types/hue'
+import type {
+  HueBridgeConfig,
+  HueLight,
+  HueGroup,
+  HueScene,
+  HueSensor,
+  LightUpdate,
+} from '../types/hue'
 import * as api from '../api/hue'
 
 interface HueContextValue {
@@ -8,6 +15,7 @@ interface HueContextValue {
   lights: HueLight[]
   groups: HueGroup[]
   scenes: HueScene[]
+  sensors: HueSensor[]
   loading: boolean
   error: string | null
   refresh: () => Promise<void>
@@ -39,6 +47,7 @@ export function HueProvider({ children }: { children: React.ReactNode }) {
   const [lights, setLights] = useState<HueLight[]>([])
   const [groups, setGroups] = useState<HueGroup[]>([])
   const [scenes, setScenes] = useState<HueScene[]>([])
+  const [sensors, setSensors] = useState<HueSensor[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,10 +61,11 @@ export function HueProvider({ children }: { children: React.ReactNode }) {
     setLoading(true)
     setError(null)
     try {
-      const [lightsData, groupsData, scenesData] = await Promise.all([
+      const [lightsData, groupsData, scenesData, sensorsData] = await Promise.all([
         api.getLights(config),
         api.getGroups(config),
         api.getScenes(config),
+        api.getSensors(config),
       ])
 
       // Attach room info to lights
@@ -67,6 +77,7 @@ export function HueProvider({ children }: { children: React.ReactNode }) {
       setLights(lightWithRoom)
       setGroups(groupsData)
       setScenes(scenesData)
+      setSensors(sensorsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur de connexion au bridge Hue')
     } finally {
@@ -156,6 +167,7 @@ export function HueProvider({ children }: { children: React.ReactNode }) {
         lights,
         groups,
         scenes,
+        sensors,
         loading,
         error,
         refresh,
