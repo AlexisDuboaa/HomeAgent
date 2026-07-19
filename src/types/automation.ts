@@ -14,7 +14,9 @@ export interface LightUpdate {
 export type Trigger =
   | { type: 'time'; hour: number; minute: number; days: number[] }
   | { type: 'sun'; event: 'sunrise' | 'sunset'; offsetMinutes: number }
-  | { type: 'sensor'; sensorId: string; event: SensorEvent }
+  // threshold (lux) n'est significatif que pour event 'low_light'/'bright_light' ;
+  // absent = seuil dark/bright natif du bridge
+  | { type: 'sensor'; sensorId: string; event: SensorEvent; threshold?: number }
   | { type: 'light_state'; targetId: string; targetKind: TargetKind; state: 'on' | 'off' }
 
 export type Condition =
@@ -24,7 +26,7 @@ export type Condition =
       before?: { hour: number; minute: number }
     }
   | { type: 'light_state'; targetId: string; targetKind: TargetKind; state: 'on' | 'off' }
-  | { type: 'sensor_state'; sensorId: string; state: SensorEvent }
+  | { type: 'sensor_state'; sensorId: string; state: SensorEvent; threshold?: number }
 
 export type Action =
   | { type: 'set_light_state'; targetId: string; targetKind: TargetKind; update: LightUpdate }

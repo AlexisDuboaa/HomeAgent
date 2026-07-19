@@ -8,9 +8,9 @@ export async function buildSnapshot(client: HueClient): Promise<BridgeStateSnaps
     client.getSensors(),
   ])
 
-  const sensorStates: Record<string, { state: SensorEvent | null }> = {}
+  const sensorStates: BridgeStateSnapshot['sensors'] = {}
   for (const [id, sensor] of Object.entries(sensors)) {
-    sensorStates[id] = { state: mapSensorState(sensor) }
+    sensorStates[id] = { state: mapSensorState(sensor), lightlevel: extractLightlevel(sensor) }
   }
 
   return {
@@ -28,4 +28,10 @@ function mapSensorState(sensor: HueSensor): SensorEvent | null {
     return sensor.state.dark ? 'low_light' : 'bright_light'
   }
   return null
+}
+
+// Valeur brute (échelle log Hue) derrière la classification dark/bright — nécessaire
+// pour comparer à un seuil personnalisé plutôt qu'au seuil natif du bridge.
+function extractLightlevel(sensor: HueSensor): number | undefined {
+  return typeof sensor.state.lightlevel === 'number' ? sensor.state.lightlevel : undefined
 }
