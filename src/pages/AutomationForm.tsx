@@ -230,37 +230,66 @@ export default function AutomationForm() {
           )}
 
           {trigger.type === 'sensor' && (
-            <div className="flex gap-3">
-              <select
-                value={trigger.sensorId}
-                onChange={(e) => {
-                  const sensorId = e.target.value
-                  const sensorType = sensors.find((s) => s.id === sensorId)?.type
-                  const [defaultEvent] = sensorEventOptions(sensorType, true)
-                  setTrigger({ ...trigger, sensorId, event: defaultEvent?.value ?? trigger.event })
-                }}
-                className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange"
-              >
-                <option value="">Choisir un capteur...</option>
-                {sensors.map((sensor) => (
-                  <option key={sensor.id} value={sensor.id}>
-                    {sensor.name} ({SENSOR_TYPE_LABELS[sensor.type] ?? sensor.type})
-                  </option>
-                ))}
-              </select>
-              <select
-                value={trigger.event}
-                onChange={(e) => setTrigger({ ...trigger, event: e.target.value as SensorEvent })}
-                className="bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange"
-              >
-                {sensorEventOptions(sensors.find((s) => s.id === trigger.sensorId)?.type, true).map(
-                  (opt) => (
+            <div className="flex flex-col gap-3">
+              <div className="flex gap-3">
+                <select
+                  value={trigger.sensorId}
+                  onChange={(e) => {
+                    const sensorId = e.target.value
+                    const sensorType = sensors.find((s) => s.id === sensorId)?.type
+                    const [defaultEvent] = sensorEventOptions(sensorType, true)
+                    setTrigger({
+                      ...trigger,
+                      sensorId,
+                      event: defaultEvent?.value ?? trigger.event,
+                    })
+                  }}
+                  className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                >
+                  <option value="">Choisir un capteur...</option>
+                  {sensors.map((sensor) => (
+                    <option key={sensor.id} value={sensor.id}>
+                      {sensor.name} ({SENSOR_TYPE_LABELS[sensor.type] ?? sensor.type})
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={trigger.event}
+                  onChange={(e) => setTrigger({ ...trigger, event: e.target.value as SensorEvent })}
+                  className="bg-bg-primary border border-white/10 rounded-xl px-4 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                >
+                  {sensorEventOptions(
+                    sensors.find((s) => s.id === trigger.sensorId)?.type,
+                    true
+                  ).map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
-                  )
-                )}
-              </select>
+                  ))}
+                </select>
+              </div>
+              {sensors.find((s) => s.id === trigger.sensorId)?.type === 'ZLLLightLevel' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-text-secondary shrink-0">Seuil</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={trigger.threshold ?? ''}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setTrigger({
+                        ...trigger,
+                        threshold: value === '' ? undefined : Number(value),
+                      })
+                    }}
+                    placeholder="ex. 100"
+                    className="w-24 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange placeholder:text-text-muted"
+                  />
+                  <span className="text-xs text-text-secondary">
+                    lux (vide = seuil par défaut du bridge)
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -313,176 +342,203 @@ export default function AutomationForm() {
             </button>
           </div>
           {conditions.map((condition, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <select
-                value={condition.type}
-                onChange={(e) => {
-                  const type = e.target.value as Condition['type']
-                  const next = [...conditions]
-                  if (type === 'time_window')
-                    next[index] = { type: 'time_window', after: { hour: 20, minute: 0 } }
-                  else if (type === 'light_state')
-                    next[index] = {
-                      type: 'light_state',
-                      targetId: '',
-                      targetKind: 'light',
-                      state: 'on',
-                    }
-                  else next[index] = { type: 'sensor_state', sensorId: '', state: 'motion' }
-                  setConditions(next)
-                }}
-                className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
-              >
-                <option value="time_window">Fenêtre horaire</option>
-                <option value="light_state">État lampe/groupe</option>
-                <option value="sensor_state">État capteur</option>
-              </select>
+            <div key={index} className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <select
+                  value={condition.type}
+                  onChange={(e) => {
+                    const type = e.target.value as Condition['type']
+                    const next = [...conditions]
+                    if (type === 'time_window')
+                      next[index] = { type: 'time_window', after: { hour: 20, minute: 0 } }
+                    else if (type === 'light_state')
+                      next[index] = {
+                        type: 'light_state',
+                        targetId: '',
+                        targetKind: 'light',
+                        state: 'on',
+                      }
+                    else next[index] = { type: 'sensor_state', sensorId: '', state: 'motion' }
+                    setConditions(next)
+                  }}
+                  className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                >
+                  <option value="time_window">Fenêtre horaire</option>
+                  <option value="light_state">État lampe/groupe</option>
+                  <option value="sensor_state">État capteur</option>
+                </select>
 
-              {condition.type === 'time_window' && (
-                <>
-                  <input
-                    type="number"
-                    min={0}
-                    max={23}
-                    value={condition.after?.hour ?? 0}
-                    onChange={(e) => {
-                      const next = [...conditions]
-                      next[index] = {
-                        ...condition,
-                        after: {
-                          hour: Number(e.target.value),
-                          minute: condition.after?.minute ?? 0,
-                        },
-                      }
-                      setConditions(next)
-                    }}
-                    className="w-16 bg-bg-primary border border-white/10 rounded-xl px-2 py-2 text-white text-sm outline-none focus:border-accent-orange"
-                  />
-                  <span className="text-xs text-text-secondary">à</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={23}
-                    value={condition.before?.hour ?? 23}
-                    onChange={(e) => {
-                      const next = [...conditions]
-                      next[index] = {
-                        ...condition,
-                        before: {
-                          hour: Number(e.target.value),
-                          minute: condition.before?.minute ?? 59,
-                        },
-                      }
-                      setConditions(next)
-                    }}
-                    className="w-16 bg-bg-primary border border-white/10 rounded-xl px-2 py-2 text-white text-sm outline-none focus:border-accent-orange"
-                  />
-                </>
-              )}
+                {condition.type === 'time_window' && (
+                  <>
+                    <input
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={condition.after?.hour ?? 0}
+                      onChange={(e) => {
+                        const next = [...conditions]
+                        next[index] = {
+                          ...condition,
+                          after: {
+                            hour: Number(e.target.value),
+                            minute: condition.after?.minute ?? 0,
+                          },
+                        }
+                        setConditions(next)
+                      }}
+                      className="w-16 bg-bg-primary border border-white/10 rounded-xl px-2 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                    />
+                    <span className="text-xs text-text-secondary">à</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={condition.before?.hour ?? 23}
+                      onChange={(e) => {
+                        const next = [...conditions]
+                        next[index] = {
+                          ...condition,
+                          before: {
+                            hour: Number(e.target.value),
+                            minute: condition.before?.minute ?? 59,
+                          },
+                        }
+                        setConditions(next)
+                      }}
+                      className="w-16 bg-bg-primary border border-white/10 rounded-xl px-2 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                    />
+                  </>
+                )}
 
-              {condition.type === 'light_state' && (
-                <>
-                  <select
-                    value={condition.targetKind}
-                    onChange={(e) => {
-                      const next = [...conditions]
-                      next[index] = {
-                        ...condition,
-                        targetKind: e.target.value as 'light' | 'group',
-                      }
-                      setConditions(next)
-                    }}
-                    className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
-                  >
-                    <option value="light">Lampe</option>
-                    <option value="group">Groupe</option>
-                  </select>
-                  <select
-                    value={condition.targetId}
-                    onChange={(e) => {
-                      const next = [...conditions]
-                      next[index] = { ...condition, targetId: e.target.value }
-                      setConditions(next)
-                    }}
-                    className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
-                  >
-                    <option value="">Choisir...</option>
-                    {(condition.targetKind === 'light' ? lights : groups).map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={condition.state}
-                    onChange={(e) => {
-                      const next = [...conditions]
-                      next[index] = { ...condition, state: e.target.value as 'on' | 'off' }
-                      setConditions(next)
-                    }}
-                    className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
-                  >
-                    <option value="on">Allumée</option>
-                    <option value="off">Éteinte</option>
-                  </select>
-                </>
-              )}
-
-              {condition.type === 'sensor_state' && (
-                <>
-                  <select
-                    value={condition.sensorId}
-                    onChange={(e) => {
-                      const sensorId = e.target.value
-                      const sensorType = sensors.find((s) => s.id === sensorId)?.type
-                      const [defaultEvent] = sensorEventOptions(sensorType, false)
-                      const next = [...conditions]
-                      next[index] = {
-                        ...condition,
-                        sensorId,
-                        state: defaultEvent?.value ?? condition.state,
-                      }
-                      setConditions(next)
-                    }}
-                    className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
-                  >
-                    <option value="">Choisir un capteur...</option>
-                    {sensors
-                      .filter((s) => s.type === 'ZLLPresence' || s.type === 'ZLLLightLevel')
-                      .map((sensor) => (
-                        <option key={sensor.id} value={sensor.id}>
-                          {sensor.name} ({SENSOR_TYPE_LABELS[sensor.type] ?? sensor.type})
+                {condition.type === 'light_state' && (
+                  <>
+                    <select
+                      value={condition.targetKind}
+                      onChange={(e) => {
+                        const next = [...conditions]
+                        next[index] = {
+                          ...condition,
+                          targetKind: e.target.value as 'light' | 'group',
+                        }
+                        setConditions(next)
+                      }}
+                      className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                    >
+                      <option value="light">Lampe</option>
+                      <option value="group">Groupe</option>
+                    </select>
+                    <select
+                      value={condition.targetId}
+                      onChange={(e) => {
+                        const next = [...conditions]
+                        next[index] = { ...condition, targetId: e.target.value }
+                        setConditions(next)
+                      }}
+                      className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                    >
+                      <option value="">Choisir...</option>
+                      {(condition.targetKind === 'light' ? lights : groups).map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
                         </option>
                       ))}
-                  </select>
-                  <select
-                    value={condition.state}
-                    onChange={(e) => {
-                      const next = [...conditions]
-                      next[index] = { ...condition, state: e.target.value as SensorEvent }
-                      setConditions(next)
-                    }}
-                    className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
-                  >
-                    {sensorEventOptions(
-                      sensors.find((s) => s.id === condition.sensorId)?.type,
-                      false
-                    ).map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
+                    </select>
+                    <select
+                      value={condition.state}
+                      onChange={(e) => {
+                        const next = [...conditions]
+                        next[index] = { ...condition, state: e.target.value as 'on' | 'off' }
+                        setConditions(next)
+                      }}
+                      className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                    >
+                      <option value="on">Allumée</option>
+                      <option value="off">Éteinte</option>
+                    </select>
+                  </>
+                )}
 
-              <button
-                type="button"
-                onClick={() => setConditions(conditions.filter((_, i) => i !== index))}
-                className="text-text-secondary hover:text-red-400 transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
+                {condition.type === 'sensor_state' && (
+                  <>
+                    <select
+                      value={condition.sensorId}
+                      onChange={(e) => {
+                        const sensorId = e.target.value
+                        const sensorType = sensors.find((s) => s.id === sensorId)?.type
+                        const [defaultEvent] = sensorEventOptions(sensorType, false)
+                        const next = [...conditions]
+                        next[index] = {
+                          ...condition,
+                          sensorId,
+                          state: defaultEvent?.value ?? condition.state,
+                        }
+                        setConditions(next)
+                      }}
+                      className="flex-1 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                    >
+                      <option value="">Choisir un capteur...</option>
+                      {sensors
+                        .filter((s) => s.type === 'ZLLPresence' || s.type === 'ZLLLightLevel')
+                        .map((sensor) => (
+                          <option key={sensor.id} value={sensor.id}>
+                            {sensor.name} ({SENSOR_TYPE_LABELS[sensor.type] ?? sensor.type})
+                          </option>
+                        ))}
+                    </select>
+                    <select
+                      value={condition.state}
+                      onChange={(e) => {
+                        const next = [...conditions]
+                        next[index] = { ...condition, state: e.target.value as SensorEvent }
+                        setConditions(next)
+                      }}
+                      className="bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange"
+                    >
+                      {sensorEventOptions(
+                        sensors.find((s) => s.id === condition.sensorId)?.type,
+                        false
+                      ).map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setConditions(conditions.filter((_, i) => i !== index))}
+                  className="text-text-secondary hover:text-red-400 transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              {condition.type === 'sensor_state' &&
+                sensors.find((s) => s.id === condition.sensorId)?.type === 'ZLLLightLevel' && (
+                  <div className="flex items-center gap-2 pl-1">
+                    <span className="text-xs text-text-secondary shrink-0">Seuil</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={condition.threshold ?? ''}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        const next = [...conditions]
+                        next[index] = {
+                          ...condition,
+                          threshold: value === '' ? undefined : Number(value),
+                        }
+                        setConditions(next)
+                      }}
+                      placeholder="ex. 100"
+                      className="w-24 bg-bg-primary border border-white/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent-orange placeholder:text-text-muted"
+                    />
+                    <span className="text-xs text-text-secondary">
+                      lux (vide = seuil par défaut du bridge)
+                    </span>
+                  </div>
+                )}
             </div>
           ))}
         </section>
