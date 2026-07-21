@@ -65,6 +65,7 @@ export default function AutomationForm() {
 
   const [name, setName] = useState('')
   const [enabled, setEnabled] = useState(true)
+  const [respectManualOff, setRespectManualOff] = useState(false)
   const [trigger, setTrigger] = useState<Trigger>(defaultTrigger())
   const [conditions, setConditions] = useState<Condition[]>([])
   const [actions, setActions] = useState<Action[]>([defaultAction()])
@@ -79,6 +80,7 @@ export default function AutomationForm() {
       if (!existing) return
       setName(existing.name)
       setEnabled(existing.enabled)
+      setRespectManualOff(existing.respectManualOff ?? false)
       setTrigger(existing.trigger)
       setConditions(existing.conditions)
       setActions(existing.actions)
@@ -94,7 +96,7 @@ export default function AutomationForm() {
     setSaving(true)
     setError(null)
     try {
-      const payload = { name, enabled, trigger, conditions, actions }
+      const payload = { name, enabled, respectManualOff, trigger, conditions, actions }
       if (isEditing && id) {
         await updateAutomation(id, payload)
       } else {
@@ -685,6 +687,12 @@ export default function AutomationForm() {
                           {entry.actionsExecuted} action{entry.actionsExecuted > 1 ? 's' : ''}{' '}
                           exécutée
                           {entry.actionsExecuted > 1 ? 's' : ''}
+                          {entry.skippedActions ? (
+                            <>
+                              , {entry.skippedActions} suspendue
+                              {entry.skippedActions > 1 ? 's' : ''} (extinction manuelle)
+                            </>
+                          ) : null}
                         </span>
                       ) : (
                         <span className="text-xs text-red-400">
@@ -707,14 +715,24 @@ export default function AutomationForm() {
           >
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
-          <label className="flex items-center gap-2 text-sm text-text-secondary">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-            />
-            Activée
-          </label>
+          <div className="flex flex-col gap-1.5">
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+              />
+              Activée
+            </label>
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                checked={respectManualOff}
+                onChange={(e) => setRespectManualOff(e.target.checked)}
+              />
+              Respecter l'extinction manuelle (ne pas rallumer avant le prochain lever du soleil)
+            </label>
+          </div>
         </div>
       </div>
     </div>
