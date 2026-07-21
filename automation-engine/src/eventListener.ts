@@ -132,7 +132,7 @@ export function startEventListener(
       const on = (targetKind === 'light' ? snapshot.lights : snapshot.groups)[targetId]?.on
       if (on === undefined) return
 
-      if (!on && !wasRecentlyExecuted(targetId)) {
+      if (!on && !wasRecentlyExecuted(targetId, targetKind)) {
         await recordManualOff(store, targetId, targetKind, now)
       }
 

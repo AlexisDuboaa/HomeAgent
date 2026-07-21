@@ -2,17 +2,18 @@ import suncalc from 'suncalc'
 import type { AutomationStore } from './store.js'
 import type { Action, TargetKind } from './types.js'
 
-export function suppressionKey(automationId: string, targetId: string): string {
-  return `${automationId}:${targetId}`
+export function suppressionKey(automationId: string, targetId: string, targetKind: TargetKind): string {
+  return `${automationId}:${targetKind}:${targetId}`
 }
 
 export function isSuppressed(
   suppressions: Record<string, { until: string }>,
   automationId: string,
   targetId: string,
+  targetKind: TargetKind,
   now: Date
 ): boolean {
-  const entry = suppressions[suppressionKey(automationId, targetId)]
+  const entry = suppressions[suppressionKey(automationId, targetId, targetKind)]
   if (!entry) return false
   return now < new Date(entry.until)
 }
@@ -39,7 +40,7 @@ export async function recordManualOff(
     if (!automation.respectManualOff) continue
     const targets = automation.actions.some((action) => actionTargets(action, targetId, targetKind))
     if (!targets) continue
-    await store.setSuppression(suppressionKey(automation.id, targetId), until)
+    await store.setSuppression(suppressionKey(automation.id, targetId, targetKind), until)
   }
 }
 

@@ -6,30 +6,39 @@ const PARIS_LAT = 48.8566
 const PARIS_LON = 2.3522
 
 describe('suppressionKey', () => {
-  it('joins automationId and targetId with a colon', () => {
-    expect(suppressionKey('a1', '5')).toBe('a1:5')
+  it('joins automationId, targetKind and targetId with colons', () => {
+    expect(suppressionKey('a1', '5', 'light')).toBe('a1:light:5')
+  })
+
+  it('produces different keys for the same automationId/targetId across kinds', () => {
+    expect(suppressionKey('a1', '5', 'light')).not.toBe(suppressionKey('a1', '5', 'group'))
   })
 })
 
 describe('isSuppressed', () => {
   it('returns false when there is no entry for the key', () => {
-    expect(isSuppressed({}, 'a1', '5', new Date())).toBe(false)
+    expect(isSuppressed({}, 'a1', '5', 'light', new Date())).toBe(false)
   })
 
   it('returns true when the suppression is still in the future', () => {
-    const suppressions = { 'a1:5': { until: new Date(Date.now() + 60_000).toISOString() } }
-    expect(isSuppressed(suppressions, 'a1', '5', new Date())).toBe(true)
+    const suppressions = { 'a1:light:5': { until: new Date(Date.now() + 60_000).toISOString() } }
+    expect(isSuppressed(suppressions, 'a1', '5', 'light', new Date())).toBe(true)
   })
 
   it('returns false when the suppression has already expired', () => {
-    const suppressions = { 'a1:5': { until: new Date(Date.now() - 60_000).toISOString() } }
-    expect(isSuppressed(suppressions, 'a1', '5', new Date())).toBe(false)
+    const suppressions = { 'a1:light:5': { until: new Date(Date.now() - 60_000).toISOString() } }
+    expect(isSuppressed(suppressions, 'a1', '5', 'light', new Date())).toBe(false)
   })
 
   it('is scoped to the exact automationId/targetId pair', () => {
-    const suppressions = { 'a1:5': { until: new Date(Date.now() + 60_000).toISOString() } }
-    expect(isSuppressed(suppressions, 'a1', '6', new Date())).toBe(false)
-    expect(isSuppressed(suppressions, 'a2', '5', new Date())).toBe(false)
+    const suppressions = { 'a1:light:5': { until: new Date(Date.now() + 60_000).toISOString() } }
+    expect(isSuppressed(suppressions, 'a1', '6', 'light', new Date())).toBe(false)
+    expect(isSuppressed(suppressions, 'a2', '5', 'light', new Date())).toBe(false)
+  })
+
+  it('is scoped to targetKind so a light and group with the same numeric id do not collide', () => {
+    const suppressions = { 'a1:light:5': { until: new Date(Date.now() + 60_000).toISOString() } }
+    expect(isSuppressed(suppressions, 'a1', '5', 'group', new Date())).toBe(false)
   })
 })
 

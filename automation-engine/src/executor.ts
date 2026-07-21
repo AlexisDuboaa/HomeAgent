@@ -2,7 +2,7 @@ import { markExecuted } from './selfAttribution.js'
 import type { HueClient } from './hueClient.js'
 import type { AutomationStore } from './store.js'
 import { isSuppressed } from './suppression.js'
-import type { Action } from './types.js'
+import type { Action, TargetKind } from './types.js'
 
 export interface ExecutionContext {
   store: AutomationStore
@@ -24,7 +24,7 @@ export async function executeActions(
 
     if (ctx.respectManualOff && target && isRelightAction(action)) {
       const suppressions = ctx.store.getSuppressions()
-      if (isSuppressed(suppressions, ctx.automationId, target, ctx.now)) {
+      if (isSuppressed(suppressions, ctx.automationId, target.id, target.kind, ctx.now)) {
         skipped++
         continue
       }
@@ -40,16 +40,16 @@ export async function executeActions(
       await client.activateScene(action.groupId, action.sceneId)
     }
 
-    if (target) markExecuted(target)
+    if (target) markExecuted(target.id, target.kind)
     executed++
   }
 
   return { executed, skipped }
 }
 
-function actionTarget(action: Action): string | null {
-  if (action.type === 'set_light_state') return action.targetId
-  if (action.type === 'activate_scene') return action.groupId
+function actionTarget(action: Action): { id: string; kind: TargetKind } | null {
+  if (action.type === 'set_light_state') return { id: action.targetId, kind: action.targetKind }
+  if (action.type === 'activate_scene') return { id: action.groupId, kind: 'group' }
   return null
 }
 
