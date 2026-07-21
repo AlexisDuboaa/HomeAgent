@@ -16,6 +16,15 @@ export class AutomationStore {
   async init(): Promise<void> {
     await this.db.read()
     this.db.data ||= DEFAULT_DATA
+    // db.read() replaces this.db.data wholesale with whatever was parsed from
+    // disk — it does not merge with DEFAULT_DATA. A data file written before a
+    // collection existed (e.g. `suppressions`, added for the "respect manual
+    // off" feature) will be missing that key even though `this.db.data` itself
+    // is truthy. Backfill defensively so older files are safe to load.
+    this.db.data.automations ??= []
+    this.db.data.history ??= {}
+    this.db.data.config ??= null
+    this.db.data.suppressions ??= {}
     await this.db.write()
   }
 
