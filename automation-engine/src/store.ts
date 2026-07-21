@@ -3,7 +3,7 @@ import { JSONFile } from 'lowdb/node'
 import { randomUUID } from 'node:crypto'
 import type { Automation, AutomationRunLogEntry, AutomationsStoreData, LocationConfig } from './types.js'
 
-const DEFAULT_DATA: AutomationsStoreData = { automations: [], history: {}, config: null }
+const DEFAULT_DATA: AutomationsStoreData = { automations: [], history: {}, config: null, suppressions: {} }
 const MAX_HISTORY_ENTRIES = 20
 
 export class AutomationStore {
@@ -16,6 +16,15 @@ export class AutomationStore {
   async init(): Promise<void> {
     await this.db.read()
     this.db.data ||= DEFAULT_DATA
+    // db.read() replaces this.db.data wholesale with whatever was parsed from
+    // disk — it does not merge with DEFAULT_DATA. A data file written before a
+    // collection existed (e.g. `suppressions`, added for the "respect manual
+    // off" feature) will be missing that key even though `this.db.data` itself
+    // is truthy. Backfill defensively so older files are safe to load.
+    this.db.data.automations ??= []
+    this.db.data.history ??= {}
+    this.db.data.config ??= null
+    this.db.data.suppressions ??= {}
     await this.db.write()
   }
 
@@ -51,6 +60,9 @@ export class AutomationStore {
     const before = this.db.data.automations.length
     this.db.data.automations = this.db.data.automations.filter((a) => a.id !== id)
     delete this.db.data.history[id]
+    for (const key of Object.keys(this.db.data.suppressions)) {
+      if (key.startsWith(`${id}:`)) delete this.db.data.suppressions[key]
+    }
     await this.db.write()
     return this.db.data.automations.length < before
   }
@@ -77,6 +89,15 @@ export class AutomationStore {
 
   async setConfig(config: LocationConfig): Promise<void> {
     this.db.data.config = config
+    await this.db.write()
+  }
+
+  getSuppressions(): Record<string, { until: string }> {
+    return this.db.data.suppressions
+  }
+
+  async setSuppression(key: string, until: string): Promise<void> {
+    this.db.data.suppressions[key] = { until }
     await this.db.write()
   }
 }

@@ -6,6 +6,8 @@ import { buildSnapshot } from './snapshot.js'
 import type { AutomationStore } from './store.js'
 import type { HueClient } from './hueClient.js'
 import type { TargetKind } from './types.js'
+import { wasRecentlyExecuted } from './selfAttribution.js'
+import { recordManualOff } from './suppression.js'
 
 export interface EventListenerConfig {
   bridgeIp: string
@@ -129,6 +131,11 @@ export function startEventListener(
       }
       const on = (targetKind === 'light' ? snapshot.lights : snapshot.groups)[targetId]?.on
       if (on === undefined) return
+
+      if (!on && !wasRecentlyExecuted(targetId, targetKind)) {
+        await recordManualOff(store, targetId, targetKind, now)
+      }
+
       await runTick(
         store,
         client,

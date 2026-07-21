@@ -24,11 +24,17 @@ export async function runTick(
     if (!actions) continue
 
     try {
-      await executeActions(client, actions)
+      const { executed, skipped } = await executeActions(client, actions, {
+        store,
+        automationId: automation.id,
+        respectManualOff: automation.respectManualOff ?? false,
+        now: ctx.now,
+      })
       await store.appendHistory(automation.id, {
         at: new Date().toISOString(),
         success: true,
-        actionsExecuted: actions.length,
+        actionsExecuted: executed,
+        skippedActions: skipped > 0 ? skipped : undefined,
       })
     } catch (err) {
       await store.appendHistory(automation.id, {
