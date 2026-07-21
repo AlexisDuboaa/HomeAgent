@@ -45,7 +45,7 @@ export async function recordManualOff(
 
 function actionTargets(action: Action, targetId: string, targetKind: TargetKind): boolean {
   if (action.type === 'set_light_state') {
-    return action.targetId === targetId && action.targetKind === targetKind
+    return action.targetId === targetId && action.targetKind === targetKind && action.update.on === true
   }
   if (action.type === 'activate_scene') {
     return action.groupId === targetId && targetKind === 'group'
