@@ -40,6 +40,7 @@ export interface Automation {
   conditions: Condition[]
   actions: Action[]
   createdAt: string
+  respectManualOff?: boolean
 }
 
 export interface AutomationRunLogEntry {
@@ -47,6 +48,7 @@ export interface AutomationRunLogEntry {
   success: boolean
   error?: string
   actionsExecuted: number
+  skippedActions?: number
 }
 
 export interface LocationConfig {
